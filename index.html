@@ -4,11 +4,20 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SplitCart - Grocery Expense Sharing</title>
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://unpkg.com/recharts@2.5.0/dist/Recharts.js"></script>
+  
+  <!-- Load React first -->
+  <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+  
+  <!-- Load Babel -->
+  <script src="https://unpkg.com/@babel/standalone@7.23.5/babel.min.js"></script>
+  
+  <!-- Load Recharts -->
+  <script src="https://unpkg.com/recharts@2.10.3/dist/Recharts.js"></script>
+  
+  <!-- Load Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
+  
   <style>
     body {
       margin: 0;
@@ -17,13 +26,33 @@
   </style>
 </head>
 <body>
-  <div id="root"></div>
+  <div id="root">
+    <!-- Fallback content while loading -->
+    <div style="display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: sans-serif;">
+      <div style="text-align: center;">
+        <h1>Loading SplitCart...</h1>
+        <p>If this message persists, check the browser console for errors.</p>
+      </div>
+    </div>
+  </div>
 
   <script type="text/babel">
+    // Check if React loaded
+    if (typeof React === 'undefined') {
+      document.getElementById('root').innerHTML = '<div style="padding: 40px; font-family: sans-serif;"><h1>Error: React failed to load</h1><p>Please check your internet connection and refresh the page.</p></div>';
+      throw new Error('React not loaded');
+    }
+
+    // Check if Recharts loaded
+    if (typeof Recharts === 'undefined') {
+      document.getElementById('root').innerHTML = '<div style="padding: 40px; font-family: sans-serif;"><h1>Error: Recharts failed to load</h1><p>Please check your internet connection and refresh the page.</p></div>';
+      throw new Error('Recharts not loaded');
+    }
+
     const { useState, useEffect } = React;
     const { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } = Recharts;
 
-    // Lucide icons as inline SVG components
+    // Icons
     const ShoppingCart = (props) => (
       <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
@@ -94,17 +123,7 @@
       </svg>
     );
 
-    const STORES = [
-      'Walmart',
-      'Indian Market',
-      'Kroger',
-      'Target',
-      'Costco',
-      'Trader Joe\'s',
-      'Whole Foods',
-      'Aldi',
-      'Other'
-    ];
+    const STORES = ['Walmart', 'Indian Market', 'Kroger', 'Target', 'Costco', 'Trader Joe\'s', 'Whole Foods', 'Aldi', 'Other'];
 
     const DEFAULT_ROOMMATES = {
       person1: { name: 'Alex', color: '#e07a5f' },
@@ -112,15 +131,14 @@
       person3: { name: 'Taylor', color: '#f4a261' }
     };
 
-    // LocalStorage helpers (replacing window.storage)
+    // Storage helpers
     const storageHelpers = {
       getTrips() {
         try {
-          const tripsData = localStorage.getItem('splitcart_trips');
-          if (!tripsData) return [];
-          const trips = JSON.parse(tripsData);
-          return trips.sort((a, b) => new Date(b.date) - new Date(a.date));
-        } catch {
+          const data = localStorage.getItem('splitcart_trips');
+          return data ? JSON.parse(data).sort((a, b) => new Date(b.date) - new Date(a.date)) : [];
+        } catch (e) {
+          console.error('Error loading trips:', e);
           return [];
         }
       },
@@ -128,15 +146,13 @@
       saveTrip(trip) {
         try {
           const trips = this.getTrips();
-          const existingIndex = trips.findIndex(t => t.id === trip.id);
-          if (existingIndex >= 0) {
-            trips[existingIndex] = trip;
-          } else {
-            trips.push(trip);
-          }
+          const index = trips.findIndex(t => t.id === trip.id);
+          if (index >= 0) trips[index] = trip;
+          else trips.push(trip);
           localStorage.setItem('splitcart_trips', JSON.stringify(trips));
           return true;
-        } catch {
+        } catch (e) {
+          console.error('Error saving trip:', e);
           return false;
         }
       },
@@ -146,7 +162,8 @@
           const trips = this.getTrips().filter(t => t.id !== tripId);
           localStorage.setItem('splitcart_trips', JSON.stringify(trips));
           return true;
-        } catch {
+        } catch (e) {
+          console.error('Error deleting trip:', e);
           return false;
         }
       },
@@ -155,7 +172,8 @@
         try {
           const data = localStorage.getItem('splitcart_roommates');
           return data ? JSON.parse(data) : DEFAULT_ROOMMATES;
-        } catch {
+        } catch (e) {
+          console.error('Error loading roommates:', e);
           return DEFAULT_ROOMMATES;
         }
       },
@@ -164,7 +182,8 @@
         try {
           localStorage.setItem('splitcart_roommates', JSON.stringify(roommates));
           return true;
-        } catch {
+        } catch (e) {
+          console.error('Error saving roommates:', e);
           return false;
         }
       }
@@ -197,36 +216,33 @@
       const [loading, setLoading] = useState(true);
 
       useEffect(() => {
-        loadData();
+        try {
+          const tripsData = storageHelpers.getTrips();
+          const roommatesData = storageHelpers.getRoommates();
+          setTrips(tripsData);
+          setRoommates(roommatesData);
+        } catch (e) {
+          console.error('Error loading data:', e);
+        } finally {
+          setLoading(false);
+        }
       }, []);
 
-      const loadData = () => {
-        setLoading(true);
-        const tripsData = storageHelpers.getTrips();
-        const roommatesData = storageHelpers.getRoommates();
-        setTrips(tripsData);
-        setRoommates(roommatesData);
-        setLoading(false);
-      };
-
       const addTrip = (trip) => {
-        const success = storageHelpers.saveTrip(trip);
-        if (success) {
-          loadData();
+        if (storageHelpers.saveTrip(trip)) {
+          setTrips(storageHelpers.getTrips());
           setCurrentView('home');
         }
       };
 
       const deleteTrip = (tripId) => {
-        const success = storageHelpers.deleteTrip(tripId);
-        if (success) {
-          loadData();
+        if (storageHelpers.deleteTrip(tripId)) {
+          setTrips(storageHelpers.getTrips());
         }
       };
 
       const updateRoommates = (newRoommates) => {
-        const success = storageHelpers.saveRoommates(newRoommates);
-        if (success) {
+        if (storageHelpers.saveRoommates(newRoommates)) {
           setRoommates(newRoommates);
         }
       };
@@ -236,7 +252,7 @@
           <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-red-50 flex items-center justify-center">
             <div className="text-center">
               <ShoppingCart className="w-16 h-16 text-orange-600 animate-bounce mx-auto mb-4" />
-              <p className="text-xl text-gray-700" style={{ fontFamily: 'Playfair Display, serif' }}>Loading your groceries...</p>
+              <p className="text-xl text-gray-700">Loading SplitCart...</p>
             </div>
           </div>
         );
@@ -246,56 +262,15 @@
         <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-red-50">
           <style>{`
             @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Karla:wght@400;600;700&family=JetBrains+Mono:wght@500&display=swap');
-            
-            * {
-              font-family: 'Karla', sans-serif;
-            }
-            
-            .display-font {
-              font-family: 'Playfair Display', serif;
-            }
-            
-            .mono-font {
-              font-family: 'JetBrains Mono', monospace;
-            }
-            
-            @keyframes slideIn {
-              from {
-                opacity: 0;
-                transform: translateY(20px);
-              }
-              to {
-                opacity: 1;
-                transform: translateY(0);
-              }
-            }
-            
-            .animate-slide-in {
-              animation: slideIn 0.6s ease-out forwards;
-            }
-            
-            .card-shadow {
-              box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.1);
-            }
-            
-            .grain-overlay {
-              position: relative;
-            }
-            
-            .grain-overlay::before {
-              content: '';
-              position: absolute;
-              top: 0;
-              left: 0;
-              right: 0;
-              bottom: 0;
-              background-image: url('data:image/svg+xml,%3Csvg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="noiseFilter"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="4" numOctaves="3" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23noiseFilter)" opacity="0.03"/%3E%3C/svg%3E');
-              pointer-events: none;
-              opacity: 0.5;
-            }
+            * { font-family: 'Karla', sans-serif; }
+            .display-font { font-family: 'Playfair Display', serif; }
+            .mono-font { font-family: 'JetBrains Mono', monospace; }
+            @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+            .animate-slide-in { animation: slideIn 0.6s ease-out forwards; }
+            .card-shadow { box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.1); }
           `}</style>
 
-          <header className="bg-white border-b-4 border-orange-900 sticky top-0 z-50 grain-overlay">
+          <header className="bg-white border-b-4 border-orange-900 sticky top-0 z-50">
             <div className="max-w-7xl mx-auto px-4 py-4">
               <div className="flex items-center justify-between flex-wrap gap-4">
                 <div className="flex items-center gap-3">
@@ -305,22 +280,20 @@
                 <nav className="flex gap-2 flex-wrap">
                   {[
                     { id: 'home', icon: Home, label: 'Home' },
-                    { id: 'add', icon: Plus, label: 'Add Trip' },
+                    { id: 'add', icon: Plus, label: 'Add' },
                     { id: 'personal', icon: User, label: 'My View' },
-                    { id: 'all', icon: Receipt, label: 'All Trips' },
+                    { id: 'all', icon: Receipt, label: 'All' },
                     { id: 'settings', icon: Settings, label: 'Settings' }
                   ].map(nav => (
                     <button
                       key={nav.id}
                       onClick={() => setCurrentView(nav.id)}
-                      className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center gap-2 ${
-                        currentView === nav.id
-                          ? 'bg-orange-600 text-white card-shadow'
-                          : 'bg-white text-gray-700 hover:bg-orange-100'
+                      className={`px-3 py-2 rounded-lg font-semibold transition-all flex items-center gap-2 text-sm ${
+                        currentView === nav.id ? 'bg-orange-600 text-white card-shadow' : 'bg-white text-gray-700 hover:bg-orange-100'
                       }`}
                     >
                       <nav.icon className="w-4 h-4" />
-                      <span className="hidden md:inline">{nav.label}</span>
+                      <span className="hidden sm:inline">{nav.label}</span>
                     </button>
                   ))}
                 </nav>
@@ -331,14 +304,7 @@
           <main className="max-w-7xl mx-auto px-4 py-8">
             {currentView === 'home' && <HomeView trips={trips} roommates={roommates} />}
             {currentView === 'add' && <AddTripView onSave={addTrip} roommates={roommates} />}
-            {currentView === 'personal' && (
-              <PersonalView 
-                trips={trips} 
-                roommates={roommates} 
-                selectedPerson={selectedPerson}
-                setSelectedPerson={setSelectedPerson}
-              />
-            )}
+            {currentView === 'personal' && <PersonalView trips={trips} roommates={roommates} selectedPerson={selectedPerson} setSelectedPerson={setSelectedPerson} />}
             {currentView === 'all' && <AllTripsView trips={trips} roommates={roommates} onDelete={deleteTrip} />}
             {currentView === 'settings' && <SettingsView roommates={roommates} onUpdate={updateRoommates} />}
           </main>
@@ -346,20 +312,16 @@
       );
     }
 
+    // HomeView component
     function HomeView({ trips, roommates }) {
-      const calculateOverallTotals = () => {
-        const totals = { person1: 0, person2: 0, person3: 0 };
-        trips.forEach(trip => {
-          Object.keys(trip.totals).forEach(person => {
-            totals[person] = (totals[person] || 0) + trip.totals[person];
-          });
+      const totals = { person1: 0, person2: 0, person3: 0 };
+      trips.forEach(trip => {
+        Object.keys(trip.totals).forEach(person => {
+          totals[person] += trip.totals[person];
         });
-        return totals;
-      };
+      });
 
-      const totals = calculateOverallTotals();
       const householdTotal = Object.values(totals).reduce((sum, val) => sum + val, 0);
-      
       const pieData = Object.keys(roommates).map(key => ({
         name: roommates[key].name,
         value: totals[key],
@@ -367,169 +329,108 @@
       }));
 
       const currentMonth = new Date().toISOString().slice(0, 7);
-      const monthlyTotal = trips
-        .filter(t => t.date.startsWith(currentMonth))
+      const monthlyTotal = trips.filter(t => t.date.startsWith(currentMonth))
         .reduce((sum, trip) => sum + Object.values(trip.totals).reduce((s, v) => s + v, 0), 0);
-
-      const storeData = trips.reduce((acc, trip) => {
-        const total = Object.values(trip.totals).reduce((s, v) => s + v, 0);
-        acc[trip.store] = (acc[trip.store] || 0) + total;
-        return acc;
-      }, {});
-
-      const storeChartData = Object.entries(storeData).map(([store, amount]) => ({
-        store,
-        amount
-      })).sort((a, b) => b.amount - a.amount);
 
       return (
         <div className="space-y-6 animate-slide-in">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-white p-6 rounded-2xl card-shadow border-4 border-orange-900">
-              <div className="flex items-center gap-2 mb-2">
-                <DollarSign className="w-5 h-5 text-orange-600" />
-                <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Total Household</p>
-              </div>
-              <p className="text-4xl font-black text-orange-900 mono-font">${householdTotal.toFixed(2)}</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-white p-4 rounded-2xl card-shadow border-4 border-orange-900">
+              <DollarSign className="w-5 h-5 text-orange-600 mb-2" />
+              <p className="text-xs font-semibold text-gray-600 uppercase">Total</p>
+              <p className="text-2xl md:text-3xl font-black text-orange-900 mono-font">${householdTotal.toFixed(2)}</p>
             </div>
-            
-            <div className="bg-white p-6 rounded-2xl card-shadow border-4 border-green-700">
-              <div className="flex items-center gap-2 mb-2">
-                <Calendar className="w-5 h-5 text-green-600" />
-                <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">This Month</p>
-              </div>
-              <p className="text-4xl font-black text-green-700 mono-font">${monthlyTotal.toFixed(2)}</p>
+            <div className="bg-white p-4 rounded-2xl card-shadow border-4 border-green-700">
+              <Calendar className="w-5 h-5 text-green-600 mb-2" />
+              <p className="text-xs font-semibold text-gray-600 uppercase">This Month</p>
+              <p className="text-2xl md:text-3xl font-black text-green-700 mono-font">${monthlyTotal.toFixed(2)}</p>
             </div>
-            
-            <div className="bg-white p-6 rounded-2xl card-shadow border-4 border-blue-700">
-              <div className="flex items-center gap-2 mb-2">
-                <Receipt className="w-5 h-5 text-blue-600" />
-                <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Total Trips</p>
-              </div>
-              <p className="text-4xl font-black text-blue-700 mono-font">{trips.length}</p>
+            <div className="bg-white p-4 rounded-2xl card-shadow border-4 border-blue-700">
+              <Receipt className="w-5 h-5 text-blue-600 mb-2" />
+              <p className="text-xs font-semibold text-gray-600 uppercase">Trips</p>
+              <p className="text-2xl md:text-3xl font-black text-blue-700 mono-font">{trips.length}</p>
             </div>
-            
-            <div className="bg-white p-6 rounded-2xl card-shadow border-4 border-purple-700">
-              <div className="flex items-center gap-2 mb-2">
-                <TrendingUp className="w-5 h-5 text-purple-600" />
-                <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Avg per Trip</p>
-              </div>
-              <p className="text-4xl font-black text-purple-700 mono-font">
+            <div className="bg-white p-4 rounded-2xl card-shadow border-4 border-purple-700">
+              <TrendingUp className="w-5 h-5 text-purple-600 mb-2" />
+              <p className="text-xs font-semibold text-gray-600 uppercase">Avg/Trip</p>
+              <p className="text-2xl md:text-3xl font-black text-purple-700 mono-font">
                 ${trips.length > 0 ? (householdTotal / trips.length).toFixed(2) : '0.00'}
               </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white p-6 rounded-2xl card-shadow border-4 border-gray-900">
-              <h2 className="text-2xl font-black text-gray-900 mb-4 display-font">Who's Spending What</h2>
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, value }) => `${name}: $${value.toFixed(0)}`}
-                      outerRadius={100}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {pieData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value) => `$${value.toFixed(2)}`} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
+          {trips.length === 0 ? (
+            <div className="bg-white p-12 rounded-2xl card-shadow border-4 border-gray-900 text-center">
+              <ShoppingCart className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h2 className="text-2xl font-black text-gray-900 mb-2 display-font">No trips yet!</h2>
+              <p className="text-gray-600 mb-4">Click "Add" to record your first grocery trip</p>
             </div>
-
-            <div className="bg-white p-6 rounded-2xl card-shadow border-4 border-gray-900">
-              <h2 className="text-2xl font-black text-gray-900 mb-4 display-font">Store Breakdown</h2>
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={storeChartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="store" angle={-45} textAnchor="end" height={80} />
-                    <YAxis />
-                    <Tooltip formatter={(value) => `$${value.toFixed(2)}`} />
-                    <Bar dataKey="amount" fill="#f4a261" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white p-6 rounded-2xl card-shadow border-4 border-gray-900">
-            <h2 className="text-2xl font-black text-gray-900 mb-4 display-font">Recent Shopping Trips</h2>
-            <div className="space-y-3">
-              {trips.slice(0, 10).map((trip, idx) => (
-                <div 
-                  key={trip.id} 
-                  className="p-4 bg-orange-50 rounded-lg border-2 border-orange-200 hover:border-orange-400 transition-all"
-                >
-                  <div className="flex items-center justify-between flex-wrap gap-4">
-                    <div className="flex items-center gap-4">
-                      <Store className="w-5 h-5 text-orange-600" />
-                      <div>
-                        <p className="font-bold text-gray-900">{trip.store}</p>
-                        <p className="text-sm text-gray-600">{new Date(trip.date).toLocaleDateString()}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-2xl font-black text-orange-900 mono-font">
-                        ${Object.values(trip.totals).reduce((s, v) => s + v, 0).toFixed(2)}
-                      </p>
-                      <p className="text-xs text-gray-600">{trip.items.length} items</p>
-                    </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-white p-6 rounded-2xl card-shadow border-4 border-gray-900">
+                  <h2 className="text-xl font-black text-gray-900 mb-4 display-font">Spending by Person</h2>
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={pieData}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ name, value }) => `${name}: $${value.toFixed(0)}`}
+                          outerRadius={80}
+                          dataKey="value"
+                        >
+                          {pieData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip formatter={(value) => `$${value.toFixed(2)}`} />
+                      </PieChart>
+                    </ResponsiveContainer>
                   </div>
                 </div>
-              ))}
-              {trips.length === 0 && (
-                <p className="text-center text-gray-500 py-8">No trips yet. Click "Add Trip" to get started!</p>
-              )}
-            </div>
-          </div>
+
+                <div className="bg-white p-6 rounded-2xl card-shadow border-4 border-gray-900">
+                  <h2 className="text-xl font-black text-gray-900 mb-4 display-font">Recent Trips</h2>
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {trips.slice(0, 5).map(trip => (
+                      <div key={trip.id} className="p-3 bg-orange-50 rounded-lg border-2 border-orange-200">
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <p className="font-bold text-gray-900 text-sm">{trip.store}</p>
+                            <p className="text-xs text-gray-600">{new Date(trip.date).toLocaleDateString()}</p>
+                          </div>
+                          <p className="text-lg font-black text-orange-900 mono-font">
+                            ${Object.values(trip.totals).reduce((s, v) => s + v, 0).toFixed(2)}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       );
     }
 
+    // AddTripView component
     function AddTripView({ onSave, roommates }) {
       const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
       const [store, setStore] = useState('Walmart');
-      const [items, setItems] = useState([
-        { id: Date.now(), name: '', cost: '', assignedTo: ['person1', 'person2', 'person3'] }
-      ]);
+      const [items, setItems] = useState([{ id: Date.now(), name: '', cost: '', assignedTo: ['person1', 'person2', 'person3'] }]);
 
-      const addItem = () => {
-        setItems([...items, { 
-          id: Date.now(), 
-          name: '', 
-          cost: '', 
-          assignedTo: ['person1', 'person2', 'person3'] 
-        }]);
-      };
-
-      const removeItem = (id) => {
-        setItems(items.filter(item => item.id !== id));
-      };
-
-      const updateItem = (id, field, value) => {
-        setItems(items.map(item => 
-          item.id === id ? { ...item, [field]: value } : item
-        ));
-      };
-
+      const addItem = () => setItems([...items, { id: Date.now(), name: '', cost: '', assignedTo: ['person1', 'person2', 'person3'] }]);
+      const removeItem = (id) => setItems(items.filter(item => item.id !== id));
+      const updateItem = (id, field, value) => setItems(items.map(item => item.id === id ? { ...item, [field]: value } : item));
+      
       const togglePerson = (itemId, person) => {
         setItems(items.map(item => {
           if (item.id !== itemId) return item;
-          
-          const assigned = item.assignedTo.includes(person)
-            ? item.assignedTo.filter(p => p !== person)
-            : [...item.assignedTo, person];
-          
+          const assigned = item.assignedTo.includes(person) ? item.assignedTo.filter(p => p !== person) : [...item.assignedTo, person];
           return { ...item, assignedTo: assigned.length > 0 ? assigned : [person] };
         }));
       };
@@ -540,19 +441,13 @@
           alert('Please add at least one item with name and cost');
           return;
         }
-
-        const trip = {
+        onSave({
           id: `trip_${Date.now()}`,
           date,
           store,
-          items: validItems.map(item => ({
-            ...item,
-            cost: parseFloat(item.cost)
-          })),
+          items: validItems.map(item => ({ ...item, cost: parseFloat(item.cost) })),
           totals: calculateTripTotals(validItems)
-        };
-
-        onSave(trip);
+        });
       };
 
       const tripTotal = items.reduce((sum, item) => sum + (parseFloat(item.cost) || 0), 0);
@@ -560,113 +455,77 @@
 
       return (
         <div className="max-w-4xl mx-auto space-y-6 animate-slide-in">
-          <div className="bg-white p-8 rounded-2xl card-shadow border-4 border-gray-900">
-            <h2 className="text-3xl font-black text-gray-900 mb-6 display-font">Add Shopping Trip</h2>
+          <div className="bg-white p-6 rounded-2xl card-shadow border-4 border-gray-900">
+            <h2 className="text-2xl font-black text-gray-900 mb-6 display-font">Add Shopping Trip</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-2">Date</label>
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-orange-500 focus:outline-none"
-                />
+                <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-orange-500 focus:outline-none" />
               </div>
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-2">Store</label>
-                <select
-                  value={store}
-                  onChange={(e) => setStore(e.target.value)}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-orange-500 focus:outline-none"
-                >
-                  {STORES.map(s => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
+                <select value={store} onChange={(e) => setStore(e.target.value)}
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-orange-500 focus:outline-none">
+                  {STORES.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
             </div>
 
             <div className="space-y-4 mb-6">
               <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold text-gray-900">Items</h3>
-                <button
-                  onClick={addItem}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-all flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add Item
+                <h3 className="text-lg font-bold text-gray-900">Items</h3>
+                <button onClick={addItem}
+                  className="px-3 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 flex items-center gap-2 text-sm">
+                  <Plus className="w-4 h-4" />Add
                 </button>
               </div>
 
-              {items.map((item, idx) => (
+              {items.map(item => (
                 <div key={item.id} className="p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
-                  <div className="grid grid-cols-1 gap-4">
-                    <div className="grid grid-cols-12 gap-4">
-                      <div className="col-span-12 md:col-span-5">
-                        <input
-                          type="text"
-                          placeholder="Item name"
-                          value={item.name}
-                          onChange={(e) => updateItem(item.id, 'name', e.target.value)}
-                          className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-orange-500 focus:outline-none"
-                        />
-                      </div>
-                      <div className="col-span-12 md:col-span-2">
-                        <input
-                          type="number"
-                          step="0.01"
-                          placeholder="Cost"
-                          value={item.cost}
-                          onChange={(e) => updateItem(item.id, 'cost', e.target.value)}
-                          className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-orange-500 focus:outline-none mono-font"
-                        />
-                      </div>
-                      <div className="col-span-12 md:col-span-4 flex items-center gap-2">
-                        {Object.keys(roommates).map(person => (
-                          <button
-                            key={person}
-                            onClick={() => togglePerson(item.id, person)}
-                            className={`px-3 py-2 rounded-lg font-semibold transition-all flex-1 text-sm ${
-                              item.assignedTo.includes(person)
-                                ? 'text-white'
-                                : 'bg-gray-200 text-gray-600'
-                            }`}
-                            style={{
-                              backgroundColor: item.assignedTo.includes(person) ? roommates[person].color : undefined
-                            }}
-                          >
-                            {roommates[person].name}
-                          </button>
-                        ))}
-                      </div>
-                      <div className="col-span-12 md:col-span-1 flex items-center justify-end">
-                        {items.length > 1 && (
-                          <button
-                            onClick={() => removeItem(item.id)}
-                            className="p-2 text-red-600 hover:bg-red-100 rounded-lg"
-                          >
-                            <Trash2 className="w-5 h-5" />
-                          </button>
-                        )}
-                      </div>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <input type="text" placeholder="Item name" value={item.name}
+                        onChange={(e) => updateItem(item.id, 'name', e.target.value)}
+                        className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-orange-500 focus:outline-none" />
+                      <input type="number" step="0.01" placeholder="Cost" value={item.cost}
+                        onChange={(e) => updateItem(item.id, 'cost', e.target.value)}
+                        className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-orange-500 focus:outline-none mono-font" />
+                    </div>
+                    <div className="flex gap-2 flex-wrap">
+                      {Object.keys(roommates).map(person => (
+                        <button key={person} onClick={() => togglePerson(item.id, person)}
+                          className={`px-3 py-2 rounded-lg font-semibold transition-all flex-1 text-sm ${
+                            item.assignedTo.includes(person) ? 'text-white' : 'bg-gray-200 text-gray-600'
+                          }`}
+                          style={{ backgroundColor: item.assignedTo.includes(person) ? roommates[person].color : undefined }}>
+                          {roommates[person].name}
+                        </button>
+                      ))}
+                      {items.length > 1 && (
+                        <button onClick={() => removeItem(item.id)}
+                          className="px-3 py-2 text-red-600 hover:bg-red-100 rounded-lg">
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="bg-orange-50 p-6 rounded-lg border-2 border-orange-200 mb-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">Trip Summary</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-orange-50 p-4 rounded-lg border-2 border-orange-200 mb-6">
+              <h3 className="font-bold text-gray-900 mb-3">Summary</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div>
-                  <p className="text-sm text-gray-600">Total Cost</p>
-                  <p className="text-2xl font-black text-orange-900 mono-font">${tripTotal.toFixed(2)}</p>
+                  <p className="text-xs text-gray-600">Total</p>
+                  <p className="text-xl font-black text-orange-900 mono-font">${tripTotal.toFixed(2)}</p>
                 </div>
                 {Object.keys(roommates).map(person => (
                   <div key={person}>
-                    <p className="text-sm text-gray-600">{roommates[person].name}</p>
-                    <p className="text-2xl font-black mono-font" style={{ color: roommates[person].color }}>
+                    <p className="text-xs text-gray-600">{roommates[person].name}</p>
+                    <p className="text-xl font-black mono-font" style={{ color: roommates[person].color }}>
                       ${(previewTotals[person] || 0).toFixed(2)}
                     </p>
                   </div>
@@ -674,10 +533,8 @@
               </div>
             </div>
 
-            <button
-              onClick={handleSave}
-              className="w-full py-4 bg-orange-600 text-white text-xl font-black rounded-lg hover:bg-orange-700 transition-all card-shadow"
-            >
+            <button onClick={handleSave}
+              className="w-full py-3 bg-orange-600 text-white text-lg font-black rounded-lg hover:bg-orange-700 transition-all card-shadow">
               Save Trip
             </button>
           </div>
@@ -685,27 +542,17 @@
       );
     }
 
+    // PersonalView component
     function PersonalView({ trips, roommates, selectedPerson, setSelectedPerson }) {
-      const personTrips = trips.filter(trip => 
-        trip.items.some(item => item.assignedTo.includes(selectedPerson))
-      );
-
       const personalTotal = trips.reduce((sum, trip) => sum + (trip.totals[selectedPerson] || 0), 0);
-      const householdTotal = trips.reduce((sum, trip) => 
-        sum + Object.values(trip.totals).reduce((s, v) => s + v, 0), 0
-      );
+      const householdTotal = trips.reduce((sum, trip) => sum + Object.values(trip.totals).reduce((s, v) => s + v, 0), 0);
       const personalPercentage = householdTotal > 0 ? (personalTotal / householdTotal * 100) : 0;
 
       const myItems = [];
       trips.forEach(trip => {
         trip.items.forEach(item => {
           if (item.assignedTo.includes(selectedPerson)) {
-            myItems.push({
-              ...item,
-              date: trip.date,
-              store: trip.store,
-              myShare: item.cost / item.assignedTo.length
-            });
+            myItems.push({ ...item, date: trip.date, store: trip.store, myShare: item.cost / item.assignedTo.length });
           }
         });
       });
@@ -713,76 +560,55 @@
       return (
         <div className="space-y-6 animate-slide-in">
           <div className="bg-white p-6 rounded-2xl card-shadow border-4 border-gray-900">
-            <div className="flex items-center gap-4">
-              <User className="w-6 h-6 text-gray-600" />
-              <select
-                value={selectedPerson}
-                onChange={(e) => setSelectedPerson(e.target.value)}
-                className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-orange-500 focus:outline-none text-lg font-bold"
-              >
-                {Object.keys(roommates).map(person => (
-                  <option key={person} value={person}>
-                    {roommates[person].name}'s Dashboard
-                  </option>
-                ))}
-              </select>
-            </div>
+            <select value={selectedPerson} onChange={(e) => setSelectedPerson(e.target.value)}
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-orange-500 focus:outline-none text-lg font-bold">
+              {Object.keys(roommates).map(person => (
+                <option key={person} value={person}>{roommates[person].name}'s Dashboard</option>
+              ))}
+            </select>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-white p-6 rounded-2xl card-shadow border-4 border-gray-900">
-              <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-2">My Total Spending</p>
-              <p className="text-4xl font-black mono-font" style={{ color: roommates[selectedPerson].color }}>
+              <p className="text-sm font-semibold text-gray-600 uppercase mb-2">My Total</p>
+              <p className="text-3xl font-black mono-font" style={{ color: roommates[selectedPerson].color }}>
                 ${personalTotal.toFixed(2)}
               </p>
             </div>
-            
             <div className="bg-white p-6 rounded-2xl card-shadow border-4 border-gray-900">
-              <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-2">% of Household</p>
-              <p className="text-4xl font-black text-gray-900 mono-font">
-                {personalPercentage.toFixed(1)}%
-              </p>
+              <p className="text-sm font-semibold text-gray-600 uppercase mb-2">% of Total</p>
+              <p className="text-3xl font-black text-gray-900 mono-font">{personalPercentage.toFixed(1)}%</p>
             </div>
-            
             <div className="bg-white p-6 rounded-2xl card-shadow border-4 border-gray-900">
-              <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-2">My Trips</p>
-              <p className="text-4xl font-black text-gray-900 mono-font">
-                {personTrips.length}
-              </p>
+              <p className="text-sm font-semibold text-gray-600 uppercase mb-2">My Items</p>
+              <p className="text-3xl font-black text-gray-900 mono-font">{myItems.length}</p>
             </div>
           </div>
 
           <div className="bg-white p-6 rounded-2xl card-shadow border-4 border-gray-900">
-            <h2 className="text-2xl font-black text-gray-900 mb-4 display-font">My Items ({myItems.length})</h2>
+            <h2 className="text-xl font-black text-gray-900 mb-4 display-font">My Items</h2>
             <div className="space-y-2 max-h-96 overflow-y-auto">
               {myItems.map((item, idx) => (
-                <div key={idx} className="p-3 bg-gray-50 rounded-lg border-2 border-gray-200 flex items-center justify-between flex-wrap gap-4">
+                <div key={idx} className="p-3 bg-gray-50 rounded-lg border-2 border-gray-200 flex justify-between items-center">
                   <div>
-                    <p className="font-bold text-gray-900">{item.name}</p>
-                    <p className="text-sm text-gray-600">{item.store} • {new Date(item.date).toLocaleDateString()}</p>
+                    <p className="font-bold text-gray-900 text-sm">{item.name}</p>
+                    <p className="text-xs text-gray-600">{item.store} • {new Date(item.date).toLocaleDateString()}</p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-lg font-black mono-font" style={{ color: roommates[selectedPerson].color }}>
-                      ${item.myShare.toFixed(2)}
-                    </p>
-                    {item.assignedTo.length > 1 && (
-                      <p className="text-xs text-gray-500">Split {item.assignedTo.length} ways</p>
-                    )}
-                  </div>
+                  <p className="text-lg font-black mono-font" style={{ color: roommates[selectedPerson].color }}>
+                    ${item.myShare.toFixed(2)}
+                  </p>
                 </div>
               ))}
-              {myItems.length === 0 && (
-                <p className="text-center text-gray-500 py-8">No items yet</p>
-              )}
+              {myItems.length === 0 && <p className="text-center text-gray-500 py-8">No items yet</p>}
             </div>
           </div>
         </div>
       );
     }
 
+    // AllTripsView component
     function AllTripsView({ trips, roommates, onDelete }) {
       const [searchTerm, setSearchTerm] = useState('');
-
       const filteredTrips = trips.filter(trip =>
         trip.store.toLowerCase().includes(searchTerm.toLowerCase()) ||
         trip.items.some(item => item.name.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -791,128 +617,91 @@
       return (
         <div className="space-y-6 animate-slide-in">
           <div className="bg-white p-6 rounded-2xl card-shadow border-4 border-gray-900">
-            <input
-              type="text"
-              placeholder="Search trips or items..."
-              value={searchTerm}
+            <input type="text" placeholder="Search trips or items..." value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-orange-500 focus:outline-none text-lg"
-            />
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-orange-500 focus:outline-none" />
           </div>
 
           <div className="space-y-4">
-            {filteredTrips.map((trip) => (
+            {filteredTrips.map(trip => (
               <div key={trip.id} className="bg-white p-6 rounded-2xl card-shadow border-4 border-gray-900">
-                <div className="flex items-start justify-between mb-4 flex-wrap gap-4">
-                  <div className="flex items-center gap-4">
-                    <Store className="w-6 h-6 text-orange-600" />
-                    <div>
-                      <h3 className="text-2xl font-black text-gray-900 display-font">{trip.store}</h3>
-                      <p className="text-gray-600">{new Date(trip.date).toLocaleDateString('en-US', { 
-                        weekday: 'long', 
-                        year: 'numeric', 
-                        month: 'long', 
-                        day: 'numeric' 
-                      })}</p>
-                    </div>
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h3 className="text-xl font-black text-gray-900 display-font">{trip.store}</h3>
+                    <p className="text-sm text-gray-600">{new Date(trip.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-3xl font-black text-orange-900 mono-font">
+                    <p className="text-2xl font-black text-orange-900 mono-font">
                       ${Object.values(trip.totals).reduce((s, v) => s + v, 0).toFixed(2)}
                     </p>
-                    <button
-                      onClick={() => {
-                        if (window.confirm('Delete this trip?')) {
-                          onDelete(trip.id);
-                        }
-                      }}
-                      className="mt-2 text-red-600 hover:text-red-800 font-semibold text-sm"
-                    >
-                      Delete Trip
+                    <button onClick={() => window.confirm('Delete this trip?') && onDelete(trip.id)}
+                      className="mt-2 text-red-600 hover:text-red-800 font-semibold text-sm">
+                      Delete
                     </button>
                   </div>
                 </div>
 
                 <div className="space-y-2 mb-4">
                   {trip.items.map((item, idx) => (
-                    <div key={idx} className="p-3 bg-gray-50 rounded-lg border-2 border-gray-200 flex items-center justify-between flex-wrap gap-4">
-                      <div className="flex-1">
-                        <p className="font-bold text-gray-900">{item.name}</p>
-                        <div className="flex gap-2 mt-1 flex-wrap">
+                    <div key={idx} className="p-3 bg-gray-50 rounded-lg flex justify-between items-center">
+                      <div>
+                        <p className="font-bold text-gray-900 text-sm">{item.name}</p>
+                        <div className="flex gap-2 mt-1">
                           {item.assignedTo.map(person => (
-                            <span
-                              key={person}
-                              className="px-2 py-1 rounded text-xs font-semibold text-white"
-                              style={{ backgroundColor: roommates[person].color }}
-                            >
+                            <span key={person} className="px-2 py-1 rounded text-xs font-semibold text-white"
+                              style={{ backgroundColor: roommates[person].color }}>
                               {roommates[person].name}
                             </span>
                           ))}
                         </div>
                       </div>
-                      <p className="text-xl font-black text-gray-900 mono-font">${item.cost.toFixed(2)}</p>
+                      <p className="text-lg font-black text-gray-900 mono-font">${item.cost.toFixed(2)}</p>
                     </div>
                   ))}
                 </div>
 
-                <div className="pt-4 border-t-2 border-gray-200">
-                  <div className="flex justify-end gap-6 flex-wrap">
-                    {Object.keys(roommates).map(person => (
-                      <div key={person} className="text-right">
-                        <p className="text-sm text-gray-600">{roommates[person].name}</p>
-                        <p className="text-xl font-black mono-font" style={{ color: roommates[person].color }}>
-                          ${(trip.totals[person] || 0).toFixed(2)}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
+                <div className="pt-4 border-t-2 border-gray-200 flex justify-end gap-4">
+                  {Object.keys(roommates).map(person => (
+                    <div key={person} className="text-right">
+                      <p className="text-xs text-gray-600">{roommates[person].name}</p>
+                      <p className="text-lg font-black mono-font" style={{ color: roommates[person].color }}>
+                        ${(trip.totals[person] || 0).toFixed(2)}
+                      </p>
+                    </div>
+                  ))}
                 </div>
               </div>
             ))}
-            {filteredTrips.length === 0 && (
-              <p className="text-center text-gray-500 py-8">No trips found</p>
-            )}
+            {filteredTrips.length === 0 && <p className="text-center text-gray-500 py-8">No trips found</p>}
           </div>
         </div>
       );
     }
 
+    // SettingsView component
     function SettingsView({ roommates, onUpdate }) {
       const [editedRoommates, setEditedRoommates] = useState(roommates);
-
-      const handleSave = () => {
-        onUpdate(editedRoommates);
-        alert('Settings saved!');
-      };
 
       return (
         <div className="max-w-2xl mx-auto space-y-6 animate-slide-in">
           <div className="bg-white p-8 rounded-2xl card-shadow border-4 border-gray-900">
-            <h2 className="text-3xl font-black text-gray-900 mb-6 display-font">Roommate Settings</h2>
+            <h2 className="text-2xl font-black text-gray-900 mb-6 display-font">Roommate Names</h2>
             
-            <div className="space-y-4">
+            <div className="space-y-4 mb-6">
               {Object.keys(editedRoommates).map(person => (
-                <div key={person} className="p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
+                <div key={person}>
                   <label className="block text-sm font-bold text-gray-700 mb-2">
-                    Roommate {person.slice(-1)} Name
+                    Roommate {person.slice(-1)}
                   </label>
-                  <input
-                    type="text"
-                    value={editedRoommates[person].name}
-                    onChange={(e) => setEditedRoommates({
-                      ...editedRoommates,
-                      [person]: { ...editedRoommates[person], name: e.target.value }
-                    })}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-orange-500 focus:outline-none"
-                  />
+                  <input type="text" value={editedRoommates[person].name}
+                    onChange={(e) => setEditedRoommates({ ...editedRoommates, [person]: { ...editedRoommates[person], name: e.target.value } })}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-orange-500 focus:outline-none" />
                 </div>
               ))}
             </div>
 
-            <button
-              onClick={handleSave}
-              className="w-full mt-6 py-4 bg-orange-600 text-white text-xl font-black rounded-lg hover:bg-orange-700 transition-all card-shadow"
-            >
+            <button onClick={() => { onUpdate(editedRoommates); alert('Settings saved!'); }}
+              className="w-full py-3 bg-orange-600 text-white text-lg font-black rounded-lg hover:bg-orange-700 transition-all card-shadow">
               Save Settings
             </button>
           </div>
@@ -920,8 +709,21 @@
       );
     }
 
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<GroceryExpenseApp />);
+    // Render the app
+    try {
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      root.render(<GroceryExpenseApp />);
+      console.log('✅ SplitCart loaded successfully!');
+    } catch (error) {
+      console.error('❌ Error rendering app:', error);
+      document.getElementById('root').innerHTML = `
+        <div style="padding: 40px; font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #dc2626;">Error Loading SplitCart</h1>
+          <p>There was an error loading the application. Please check the browser console for details.</p>
+          <pre style="background: #f3f4f6; padding: 15px; border-radius: 8px; overflow: auto;">${error.message}</pre>
+        </div>
+      `;
+    }
   </script>
 </body>
 </html>
