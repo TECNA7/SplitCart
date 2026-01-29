@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SplitCart - Debug Mode</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div id="debug-output" style="padding: 20px; font-family: monospace; background: #f5f5f5; min-height: 100vh;">
+    <h1 style="font-size: 24px; font-weight: bold; margin-bottom: 20px;">SplitCart - Debug Console</h1>
+    <div id="messages"></div>
+  </div>
+
+  <script>
+    const messagesDiv = document.getElementById('messages');
+    
+    function log(msg, type = 'info') {
+      const color = type === 'error' ? 'red' : type === 'success' ? 'green' : 'blue';
+      const timestamp = new Date().toLocaleTimeString();
+      const div = document.createElement('div');
+      div.style.color = color;
+      div.style.marginBottom = '10px';
+      div.style.padding = '10px';
+      div.style.backgroundColor = 'white';
+      div.style.borderLeft = `4px solid ${color}`;
+      div.innerHTML = `<strong>[${timestamp}]</strong> ${msg}`;
+      messagesDiv.appendChild(div);
+      console.log(msg);
+    }
+
+    log('Initializing SplitCart...', 'info');
+
+    // Test Supabase connection
+    const SUPABASE_URL = "https://totjcxfdmldxhzhsekhw.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRvdGpjeGZkbWxkeGh6aHNla2h3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2MzY1MjAsImV4cCI6MjA4NTIxMjUyMH0.lEruY2MgcKYFizt_dyDGbeD4TXELZZ8qwLSN30jaw1w";
+
+    log(`Supabase URL: ${SUPABASE_URL}`, 'info');
+    log(`Supabase Key: ${SUPABASE_KEY.substring(0, 50)}...`, 'info');
+
+    try {
+      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      log('✓ Supabase client created successfully', 'success');
+
+      // Test fetching expenses
+      (async () => {
+        log('Attempting to fetch expenses...', 'info');
+        
+        try {
+          const { data, error, status } = await supabase
+            .from('expenses')
+            .select('*')
+            .limit(5);
+
+          log(`Response status: ${status}`, 'info');
+
+          if (error) {
+            log(`❌ Supabase Error: ${error.message}`, 'error');
+            log(`Error details: ${JSON.stringify(error, null, 2)}`, 'error');
+            return;
+          }
+
+          if (data) {
+            log(`✓ Successfully fetched ${data.length} expenses`, 'success');
+            log(`Data: ${JSON.stringify(data, null, 2)}`, 'info');
+          }
+        } catch (err) {
+          log(`❌ Exception during fetch: ${err.message}`, 'error');
+          log(`Stack: ${err.stack}`, 'error');
+        }
+      })();
+
+      // Test inserting an expense
+      setTimeout(async () => {
+        log('Attempting to insert test expense...', 'info');
+        
+        try {
+          const { data, error, status } = await supabase
+            .from('expenses')
+            .insert({
+              item: 'Test Item - ' + Date.now(),
+              amount: 9.99,
+              paid_by: 'Test User'
+            })
+            .select();
+
+          log(`Insert response status: ${status}`, 'info');
+
+          if (error) {
+            log(`❌ Insert Error: ${error.message}`, 'error');
+            log(`Error details: ${JSON.stringify(error, null, 2)}`, 'error');
+            return;
+          }
+
+          if (data) {
+            log(`✓ Successfully inserted expense`, 'success');
+            log(`Inserted data: ${JSON.stringify(data, null, 2)}`, 'info');
+          }
+        } catch (err) {
+          log(`❌ Exception during insert: ${err.message}`, 'error');
+        }
+      }, 2000);
+
+    } catch (err) {
+      log(`❌ Failed to initialize Supabase: ${err.message}`, 'error');
+    }
+  </script>
+</body>
+</html>
