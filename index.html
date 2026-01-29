@@ -19,8 +19,40 @@
     body { margin: 0; padding: 0; }
   </style>
 </head>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+  const supabaseUrl = "https://totjcxfdmldxhzhsekhw.supabase.co";
+  const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRvdGpjeGZkbWxkeGh6aHNla2h3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2MzY1MjAsImV4cCI6MjA4NTIxMjUyMH0.lEruY2MgcKYFizt_dyDGbeD4TXELZZ8qwLSN30jaw1w";
+
+  const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+  async function loadExpenses() {
+    const { data, error } = await supabase
+      .from("expenses")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    const list = document.getElementById("expenses");
+    list.innerHTML = "";
+
+    data.forEach(exp => {
+      const li = document.createElement("li");
+      li.textContent = `${exp.item} — $${exp.amount} (paid by ${exp.paid_by})`;
+      list.appendChild(li);
+    });
+  }
+
+  loadExpenses();
+</script>
+
 <body>
   <div id="root"></div>
+  <ul id="expenses"></ul>
 
   <script type="text/babel">
     const { useState, useEffect } = React;
@@ -91,7 +123,7 @@
         return acc;
       }, {});
     };
-
+  
     const calculateTripTotals = (items) => {
       const totals = { person1: 0, person2: 0, person3: 0 };
       items.forEach(item => {
